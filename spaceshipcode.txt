@@ -1,0 +1,266 @@
+
+import "dart:math" as math;
+
+const int boundaryX = 10;
+const int boundaryY = 10;
+
+void main() {
+  PlayerSpaceship player = PlayerSpaceship(
+      x: 0, y: 0, speed: 2, health: 100, attack: 20, color: Color.purple);
+
+  print("Farbe player Spaceship: ${player.color.name}");
+
+  player.changeColor(Color.green);
+
+  print("Farbe player Spaceship: ${player.color.name}");
+
+  List<EnemySpaceship> enemies = [
+    EnemySpaceship(
+        x: 2, y: 5, speed: 1, health: 50, attack: 15, color: Color.blue),
+    EnemySpaceship(
+        x: -6, y: 2, speed: 2, health: 70, attack: 10, color: Color.yellow),
+    EnemySpaceship(
+        x: 10, y: -10, speed: 1, health: 30, attack: 20, color: Color.green),
+    EnemySpaceship(
+        x: 4, y: 12, speed: 2, health: 100, attack: 5, color: Color.blue)
+  ];
+
+  List<RepairStation> stations = [
+    RepairStation(x: 2, y: -10),
+    RepairStation(x: 8, y: -2),
+    RepairStation(x: 6, y: -6),
+    RepairStation(x: 10, y: -2)
+  ];
+
+  List<BrokenRepairStation> brokenstations = [
+    BrokenRepairStation(x: 4, y: -10),
+    BrokenRepairStation(x: 2, y: -2),
+    BrokenRepairStation(x: 1, y: -8),
+    BrokenRepairStation(x: -10, y: 2)
+  ];
+  
+  List<Asteroids> asteroids = [
+    Asteroids(x: 12, y: -6),
+    Asteroids(x: 2, y: 10)
+  ];
+  
+   List<ColorBomb> rbAsteroids = [
+    ColorBomb(Color.rainbow, x: 6, y: -6),
+    ColorBomb(Color.rainbow, x: 2, y: -6),
+    ColorBomb(Color.rainbow, x: -12, y: 2)
+  ];
+
+  bool isGameOver = false;
+  int round = 1;
+
+  while (!isGameOver) {
+    print("Runde: $round");
+
+    player.move();
+
+    for (Asteroids asteroid in asteroids) {
+      if (asteroid.x == player.x && asteroid.y == player.y) {
+        asteroid.collide(player);
+      }
+    }
+    
+      for (ColorBomb rbAsteroid in rbAsteroids) {
+      if (rbAsteroid.x == player.x && rbAsteroid.y == player.y) {
+        rbAsteroid.collide(player);
+        rbAsteroid.forcedColorChange(Color.rainbow);
+      }
+    }
+    
+    for (RepairStation station in stations) {
+      if (station.x == player.x && station.y == player.y) {
+        station.repair(player);
+      }
+    }
+
+    for (BrokenRepairStation brokenstation in brokenstations) {
+      if (brokenstation.x == player.x && brokenstation.y == player.y) {
+        brokenstation.repair(player);
+        brokenstations.remove(brokenstation);
+        break;
+      }
+    }
+
+    for (EnemySpaceship enemy in enemies) {
+      enemy.move();
+
+      if (enemy.x == player.x && enemy.y == player.y) {
+        print("Du triffst auf ein gegnerisches Raumschiff!");
+
+        player.attackEnemy(enemy, player.attack);
+        enemy.attackPlayer(player, enemy.attack);
+
+        print("Du hast noch ${player.health} Lebenspunkte");
+        print("Dein Gegner hat noch ${enemy.health} Lebenspunkte");
+      }
+
+      if (enemy.health <= 0) {
+        print("Gegnerisches Schiff wurde zerstört!");
+      }
+    }
+
+    enemies = enemies.where((el) => el.health > 0).toList();
+
+    if (player.health <= 0) {
+      isGameOver = true;
+      print("Du hast keine Lebenspunkte mehr. Game Over!");
+    } else if (enemies.length <= 0) {
+      isGameOver = true;
+      print("Es sind keine Gegner mehr übrig. Du hast gewonnen!");
+    }
+
+    if (round >= 10000) {
+      isGameOver = true;
+    }
+
+    round++;
+  }
+}
+
+enum Color { purple, blue, green, yellow, rainbow }
+
+enum Direction { forward, backward, left, right }
+
+Direction getRandomDirection() {
+  int ind = math.Random().nextInt(4);
+  return Direction.values[ind];
+}
+
+abstract class Spaceship {
+  int x, y, speed, health, attack;
+  Color color;
+
+  Spaceship(
+      {required this.x,
+      required this.y,
+      required this.speed,
+      required this.health,
+      required this.attack,
+      required this.color});
+
+  void move() {
+    Direction direction = getRandomDirection();
+    switch (direction) {
+      case Direction.forward:
+        y += y >= boundaryY ? 0 : speed;
+        break;
+      case Direction.backward:
+        y -= y <= -boundaryY ? 0 : speed;
+        break;
+      case Direction.left:
+        x -= x <= -boundaryX ? 0 : speed;
+        break;
+      case Direction.right:
+        x += x >= boundaryX ? 0 : speed;
+        break;
+      default:
+    }
+  }
+
+  void damageSpaceship(int damage) {
+    health -= damage;
+  }
+
+  void changeColor(Color newColor) {
+    color = newColor;
+  }
+}
+
+class PlayerSpaceship extends Spaceship {
+  PlayerSpaceship(
+      {required int x,
+      required int y,
+      required int speed,
+      required int health,
+      required int attack,
+      required Color color})
+      : super(
+            x: x,
+            y: y,
+            speed: speed,
+            health: health,
+            attack: attack,
+            color: color);
+
+  void attackEnemy(EnemySpaceship enemy, int damage) {
+    enemy.damageSpaceship(damage);
+  }
+}
+
+class EnemySpaceship extends Spaceship {
+  EnemySpaceship(
+      {required int x,
+      required int y,
+      required int speed,
+      required int health,
+      required int attack,
+      required Color color})
+      : super(
+            x: x,
+            y: y,
+            speed: speed,
+            health: health,
+            attack: attack,
+            color: color);
+
+  void attackPlayer(PlayerSpaceship player, int damage) {
+    player.damageSpaceship(damage);
+  }
+}
+
+abstract class Items {
+  int x, y;
+
+  Items({required this.x, required this.y, });
+}
+
+class Asteroids extends Items {
+  Asteroids({required int x, required int y}) : super(x: x, y: y);
+
+  void collide(PlayerSpaceship spaceship) {
+    print("Ein Asteroid hat das Schiff gestreift!");
+    spaceship.health -= 10;
+  }
+}
+
+class ColorBomb extends Asteroids {
+  
+  Color color; 
+  
+  ColorBomb(this.color, {required int x, required int y}) : super(x: x, y: y);
+  
+  @override
+  void collide(PlayerSpaceship spaceship) {
+    print("Ein Regenbogen-Asteroid hat uns gestreift.");
+    spaceship.health += 20;
+  }
+  
+  void forcedColorChange(Color rainbow) {
+    color = rainbow;
+    print("Die Farbe des Schiffs wurde zu ${color.name} umgewandelt.");
+  }
+}
+
+class RepairStation extends Items {
+  RepairStation({required int x, required int y}) : super(x: x, y: y);
+
+  void repair(PlayerSpaceship spaceship) {
+    print("Dein Schiff wurde vollständig repariert!");
+    spaceship.health = 100;
+  }
+}
+
+class BrokenRepairStation extends RepairStation {
+  BrokenRepairStation({required int x, required int y}) : super(x: x, y: y);
+
+  @override
+  void repair(PlayerSpaceship spaceship) {
+    print("Bei deinem Schiff wurde das falsche Maschinenteil eingebaut!");
+    spaceship.health -= 10;
+  }
+}
+
